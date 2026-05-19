@@ -59,7 +59,6 @@ jobs:
 
       - name: bandit scan
         run: bandit -r app.py --severity-level high
-
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
@@ -81,7 +80,6 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
-
   notify:
     name: Telegram Notify
     runs-on: ubuntu-latest

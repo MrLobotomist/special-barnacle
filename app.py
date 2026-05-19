@@ -37,7 +37,6 @@ def get_db():
     with engine.connect() as conn:
         yield conn
 
-
 class TaskCreate(BaseModel):
     title: str
 
