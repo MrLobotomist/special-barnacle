@@ -6,7 +6,15 @@ import sqlalchemy
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import (
-    Column, Integer, MetaData, String, Table, delete, insert, select, update
+    Column,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    delete,
+    insert,
+    select,
+    update,
 )
 
 metadata = MetaData()
