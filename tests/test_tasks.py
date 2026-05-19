@@ -1,13 +1,14 @@
+import sqlalchemy
 import pytest
 from fastapi.testclient import TestClient
-from app import app, init_db
+from app import app
 import app as app_module
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(app_module, "DB_PATH", str(tmp_path / "test.db"))
-    init_db()
+    test_engine = sqlalchemy.create_engine(f"sqlite:///{tmp_path}/test.db")
+    monkeypatch.setattr(app_module, "engine", test_engine)
     with TestClient(app) as client:
         yield client
 
