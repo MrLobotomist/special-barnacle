@@ -5,7 +5,9 @@ from typing import Optional
 import sqlalchemy
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import Column, Integer, MetaData, String, Table, delete, insert, select, update
+from sqlalchemy import (
+    Column, Integer, MetaData, String, Table, delete, insert, select, update
+)
 
 metadata = MetaData()
 tasks_table = Table(
@@ -36,6 +38,7 @@ app = FastAPI(lifespan=lifespan)
 def get_db():
     with engine.connect() as conn:
         yield conn
+
 
 class TaskCreate(BaseModel):
     title: str

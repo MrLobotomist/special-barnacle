@@ -1,7 +1,7 @@
 import sqlalchemy
 import pytest
 from fastapi.testclient import TestClient
-from app import app, init_db
+from app import app
 import app as app_module
 
 
