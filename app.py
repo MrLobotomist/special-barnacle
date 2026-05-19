@@ -21,11 +21,13 @@ def get_db():
 
 def init_db():
     with get_db() as db:
-        db.execute("""CREATE TABLE IF NOT EXISTS tasks (
+        db.execute(
+            """CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 done INTEGER DEFAULT 0
-            )""")
+            )"""
+        )
         db.commit()
 
 
@@ -80,5 +82,6 @@ def delete_task(task_id: int):
 
 if __name__ == "__main__":
     import uvicorn
+
     init_db()
     uvicorn.run(app, host="0.0.0.0", port=8000)
