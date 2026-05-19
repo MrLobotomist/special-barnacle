@@ -50,6 +50,13 @@ resource "docker_container" "db" {
   }
 
   restart = "unless-stopped"
+
+  lifecycle {
+    ignore_changes = [
+      # Runtime state that changes after container start — not part of desired config
+      command, entrypoint, hostname, network_data,
+    ]
+  }
 }
 
 resource "docker_container" "cache" {
@@ -61,6 +68,10 @@ resource "docker_container" "cache" {
   }
 
   restart = "unless-stopped"
+
+  lifecycle {
+    ignore_changes = [command, entrypoint, hostname, network_data]
+  }
 }
 
 resource "docker_container" "app" {
@@ -84,4 +95,9 @@ resource "docker_container" "app" {
   restart = "unless-stopped"
 
   depends_on = [docker_container.db, docker_container.cache]
+
+
+  lifecycle {
+    ignore_changes = [command, entrypoint, hostname, network_data]
+  }
 }
