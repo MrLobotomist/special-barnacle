@@ -1,32 +1,41 @@
-import sqlite3
-from contextlib import contextmanager
+import os
+from contextlib import asynccontextmanager, contextmanager
 from typing import Optional
 
+import sqlalchemy
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import Column, Integer, MetaData, String, Table, delete, insert, select, update
 
-app = FastAPI()
-DB_PATH = "tasks.db"
+metadata = MetaData()
+tasks_table = Table(
+    "tasks",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("title", String, nullable=False),
+    Column("done", Integer, default=0),
+)
+
+engine = sqlalchemy.create_engine(os.getenv("DATABASE_URL", "sqlite:///tasks.db"))
+
+
+def init_db():
+    metadata.create_all(engine)
+
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @contextmanager
 def get_db():
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def init_db():
-    with get_db() as db:
-        db.execute("""CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                done INTEGER DEFAULT 0
-            )""")
-        db.commit()
+    with engine.connect() as conn:
+        yield conn
 
 
 class TaskCreate(BaseModel):
@@ -41,28 +50,32 @@ class TaskUpdate(BaseModel):
 @app.get("/tasks")
 def get_tasks():
     with get_db() as db:
-        tasks = db.execute("SELECT * FROM tasks").fetchall()
-    return [dict(t) for t in tasks]
+        result = db.execute(select(tasks_table))
+        return [dict(row._mapping) for row in result]
 
 
 @app.post("/tasks", status_code=201)
 def create_task(data: TaskCreate):
     with get_db() as db:
-        cur = db.execute("INSERT INTO tasks (title) VALUES (?)", (data.title,))
+        result = db.execute(insert(tasks_table).values(title=data.title, done=0))
         db.commit()
-    return {"id": cur.lastrowid, "title": data.title, "done": 0}
+    return {"id": result.inserted_primary_key[0], "title": data.title, "done": 0}
 
 
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: int, data: TaskUpdate):
     with get_db() as db:
-        task = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        task = db.execute(
+            select(tasks_table).where(tasks_table.c.id == task_id)
+        ).fetchone()
         if task is None:
             raise HTTPException(status_code=404, detail="not found")
-        title = data.title if data.title is not None else task["title"]
-        done = data.done if data.done is not None else task["done"]
+        title = data.title if data.title is not None else task.title
+        done = data.done if data.done is not None else task.done
         db.execute(
-            "UPDATE tasks SET title = ?, done = ? WHERE id = ?", (title, done, task_id)
+            update(tasks_table)
+            .where(tasks_table.c.id == task_id)
+            .values(title=title, done=done)
         )
         db.commit()
     return {"id": task_id, "title": title, "done": done}
@@ -71,14 +84,16 @@ def update_task(task_id: int, data: TaskUpdate):
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
     with get_db() as db:
-        task = db.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        task = db.execute(
+            select(tasks_table).where(tasks_table.c.id == task_id)
+        ).fetchone()
         if task is None:
             raise HTTPException(status_code=404, detail="not found")
-        db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        db.execute(delete(tasks_table).where(tasks_table.c.id == task_id))
         db.commit()
 
 
 if __name__ == "__main__":
     import uvicorn
-    init_db()
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
